@@ -1,0 +1,7 @@
+mlflow
+dagshub
+pandas
+numpy
+matplotlib
+seaborn
+jupyter

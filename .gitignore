@@ -1,3 +1,16 @@
 
 .venv/
 venv/
+
+cred.txt
+
+
+# Data files
+data/
+*.csv
+*.parquet
+
+# Environment & Notebook artifacts
+.venv/
+.ipynb_checkpoints/
+__pycache__/
