@@ -2,8 +2,16 @@
 .venv/
 venv/
 
-cred.txt
 
+# IDE / Editor
+.vscode/
+.idea/
+
+# Secrets & Credentials
+cred.txt
+*.env
+*.pem
+secrets/
 
 # Data files
 data/
