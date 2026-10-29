@@ -1,0 +1,3 @@
+['remote "origin"']
+    url = s3://dvc
+    endpointurl = https://dagshub.com/krishnagupta96321/Sentinel-risk-engine.s3
