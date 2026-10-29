@@ -1,0 +1,5 @@
+outs:
+- md5: 97bf22d98ba4b9e30b9ce73e4a957871
+  size: 132666471
+  hash: md5
+  path: fraud_features.parquet

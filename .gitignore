@@ -7,14 +7,16 @@ venv/
 .vscode/
 .idea/
 
-# Secrets & Credentials
-cred.txt
+
 *.env
 *.pem
 secrets/
 
 # Data files
-data/
+/data/*
+!/data/processed/
+/data/processed/*
+!/data/processed/*.dvc
 *.csv
 *.parquet
 
