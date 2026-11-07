@@ -8,3 +8,6 @@ jupyter
 lightgbm
 scikit-learn
 dvc
+xgboost
+catboost
+pytest
