@@ -36,6 +36,11 @@ def log_model_run(model,params,metrics,model_name="lightgbm",):
         mlflow.log_metrics(metrics)
 
         # Log trained model
-        mlflow.sklearn.log_model(sk_model=model,name=model_name,)
+        mlflow.sklearn.log_model(sk_model=model,name=model_name,
+        skops_trusted_types=[
+        "collections.OrderedDict",
+        "lightgbm.basic.Booster",
+        "lightgbm.sklearn.LGBMClassifier",
+    ],)
 
         print("Model run logged successfully.")
