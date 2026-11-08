@@ -49,7 +49,7 @@ def test_model_training_pipeline(monkeypatch):
 
     monkeypatch.setattr(pipeline,"evaluate_model",mock_evaluate,)
 
-    # Mock MLflow tracking
+    
     monkeypatch.setattr(pipeline,"initialize_tracking",lambda: object(),)
 
     def mock_log_model_run(**kwargs):
@@ -59,10 +59,13 @@ def test_model_training_pipeline(monkeypatch):
 
     monkeypatch.setattr(pipeline,"log_model_run",mock_log_model_run,)
 
-    # Act: Run the pipeline
+    def mock_save_model(model):
+        captured["saved_model"] = model
+
+    monkeypatch.setattr(pipeline,"save_model",mock_save_model,)
+
     model, metrics = pipeline.run_training_pipeline()
 
-    # Assert: Verify the complete workflow
     assert model is dummy_model
     assert metrics == expected_metrics
 
@@ -75,3 +78,5 @@ def test_model_training_pipeline(monkeypatch):
     assert captured["logged_model"] is dummy_model
     assert captured["logged_metrics"] == expected_metrics
     assert captured["logged_name"] == "lightgbm_validation"
+
+    assert captured["saved_model"] is dummy_model

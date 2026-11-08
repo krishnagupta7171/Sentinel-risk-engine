@@ -6,7 +6,7 @@ from src.models.config import (LIGHTGBM_PARAMS,DECISION_THRESHOLD,PRIMARY_METRIC
 from src.models.train import train_lightgbm
 from src.models.evaluate import evaluate_model
 from src.common.tracking import initialize_tracking, log_model_run
-
+from src.models.save import save_model,save_model_metadata  
 
 def run_training_pipeline():
 
@@ -35,9 +35,24 @@ def run_training_pipeline():
     params["decision_threshold"] = DECISION_THRESHOLD
     params["primary_metric"] = PRIMARY_METRIC
 
-    mlflow = initialize_tracking()
+    initialize_tracking()
 
     log_model_run(model=model,params=params,metrics=metrics,model_name="lightgbm_validation",)
+
+    save_model(model)
+
+
+
+    save_model_metadata({
+        "model_name": "LightGBM Fraud Detection",
+        "model_version": "1.0.0",
+        "model_type": "LGBMClassifier",
+        "features": MODEL_FEATURES,
+        "parameters": params,
+        "decision_threshold": DECISION_THRESHOLD,
+        "primary_metric": PRIMARY_METRIC,
+    
+    })
 
     print("\nValidation Results")
 
