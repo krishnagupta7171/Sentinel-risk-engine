@@ -28,6 +28,7 @@ def create_velocity_features(df: pd.DataFrame,history: pd.DataFrame | None = Non
 
     # Prepare current transactions
     current = df[required_columns].copy()
+    current["cc_num"] = current["cc_num"].astype(str)
     current["_original_order"] = range(len(current))
     current["_is_current"] = True
 
@@ -36,6 +37,7 @@ def create_velocity_features(df: pd.DataFrame,history: pd.DataFrame | None = Non
     # Prepare historical transactions
     if history is not None:
         historical = history[required_columns].copy()
+        historical["cc_num"] = historical["cc_num"].astype(str)
 
         historical["datetime"] = pd.to_datetime(historical["datetime"],errors="raise")
 
