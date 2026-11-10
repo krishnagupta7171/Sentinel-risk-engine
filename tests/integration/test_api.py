@@ -48,6 +48,7 @@ def test_predict_api_with_transaction_history(monkeypatch):
     monkeypatch.setattr(main,"save_transaction",mock_save,)
 
     transaction = {
+        "trans_num": "TEST_API_TXN_001",
         "trans_date_trans_time": "2026-11-09 14:30:00",
         "cc_num": 123456,
         "merchant": "test_merchant",
@@ -121,6 +122,7 @@ def test_predict_api_does_not_save_on_prediction_failure(monkeypatch):
     monkeypatch.setattr(main,"save_transaction",mock_save,)
 
     transaction = {
+        "trans_num": "TEST_API_TXN_002",
         "trans_date_trans_time": "2026-11-09 14:30:00",
         "cc_num": 123456,
         "merchant": "test_merchant",
@@ -176,6 +178,7 @@ def test_predict_api_handles_internal_error(monkeypatch):
     monkeypatch.setattr(main,"save_transaction",lambda transaction: saved_transactions.append(transaction),)
 
     transaction = {
+        "trans_num": "TEST_API_TXN_003",
         "trans_date_trans_time": "2026-11-09 14:30:00",
         "cc_num": 123456,
         "merchant": "test_merchant",
@@ -199,3 +202,45 @@ def test_predict_api_handles_internal_error(monkeypatch):
     assert response.json()["detail"] == "Internal prediction error."
     assert saved_transactions == []
 
+
+def test_predict_api_rejects_duplicate_transaction(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(main, "initialize_database", lambda: None)
+
+    # Simulate an existing transaction ID
+    monkeypatch.setattr(main,"transaction_exists",lambda trans_num: calls.append("check_duplicate") or True,)
+
+    # These functions should never execute
+    monkeypatch.setattr(main,"get_transaction_history",lambda *args, **kwargs: calls.append("retrieve_history"),)
+
+    monkeypatch.setattr(main,"predict_single_transaction",lambda *args, **kwargs: calls.append("predict"),)
+
+    monkeypatch.setattr(main,"save_transaction",lambda *args, **kwargs: calls.append("save"),)
+
+    transaction = {
+        "trans_num": "TEST_API_DUPLICATE_001",
+        "trans_date_trans_time": "2026-11-09 14:30:00",
+        "cc_num": 123456,
+        "merchant": "test_merchant",
+        "category": "shopping_pos",
+        "amt": 250.50,
+        "city": "Bhagalpur",
+        "state": "BR",
+        "zip": 812001,
+        "lat": 25.2425,
+        "long": 86.9842,
+        "city_pop": 410000,
+        "unix_time": 1794214800,
+        "merch_lat": 25.2500,
+        "merch_long": 86.9900,
+    }
+
+    with TestClient(main.app) as client:
+        response = client.post("/predict", json=transaction)
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Duplicate transaction ID."
+
+    # Only duplicate checking should execute
+    assert calls == ["check_duplicate"]

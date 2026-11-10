@@ -28,3 +28,9 @@ mlruns/
 
 
 cred.txt
+
+# Generated model artifacts
+artifacts/models/*.joblib
+
+# Local SQLite database
+data/database/*.db

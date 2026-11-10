@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from contextlib import asynccontextmanager
 from src.models.realtime_predict import predict_single_transaction
 
-from src.storage.database import (initialize_database,get_transaction_history,save_transaction,)
+from src.storage.database import (initialize_database,get_transaction_history,save_transaction,transaction_exists,)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -14,6 +14,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Sentinel Risk Engine",description="Machine Learning Based Fraud Detection API",version="1.0.0",lifespan=lifespan,)
 
 class TransactionRequest(BaseModel):
+    trans_num: str 
     trans_date_trans_time: str
     cc_num: int
     merchant: str
@@ -44,6 +45,9 @@ def predict_transaction(request: TransactionRequest):
     try:
         transaction = request.model_dump()
 
+        if transaction_exists(transaction["trans_num"]):
+            raise HTTPException(status_code=400,detail="Duplicate transaction ID.",)
+
         history = get_transaction_history(cc_num=transaction["cc_num"],current_time=transaction["trans_date_trans_time"],hours=24,)
         
 
@@ -57,14 +61,11 @@ def predict_transaction(request: TransactionRequest):
             "risk_label": result["risk_label"],
         }
 
+    except HTTPException:
+        raise
+
     except ValueError as error:
-        raise HTTPException(
-            status_code=400,
-            detail=str(error),
-        )
+        raise HTTPException(status_code=400,detail=str(error),)
 
     except Exception as error:
-        raise HTTPException(
-            status_code=500,
-            detail="Internal prediction error.",
-        ) from error
+        raise HTTPException(status_code=500,detail="Internal prediction error.",) from error

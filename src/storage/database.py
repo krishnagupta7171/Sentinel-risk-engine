@@ -33,9 +33,29 @@ def initialize_database():
             )
         """)
 
+        columns = [
+            row["name"]
+            for row in connection.execute(
+                "PRAGMA table_info(transactions)"
+            ).fetchall()
+        ]
+
+        if "trans_num" not in columns:
+            connection.execute("""
+                ALTER TABLE transactions
+                ADD COLUMN trans_num TEXT
+            """)
+
+
         connection.execute("""
             CREATE INDEX IF NOT EXISTS idx_card_datetime
             ON transactions (cc_num, datetime)
+        """)
+
+        connection.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_trans_num
+            ON transactions (trans_num)
+            WHERE trans_num IS NOT NULL
         """)
 
         connection.commit()
@@ -48,6 +68,7 @@ def initialize_database():
 
 def save_transaction(transaction):
     required_fields = [
+        "trans_num",
         "cc_num",
         "trans_date_trans_time",
         "amt",
@@ -61,15 +82,21 @@ def save_transaction(transaction):
     if missing_fields:
         raise ValueError(f"Missing transaction fields: {missing_fields}")
 
+    trans_num = str(transaction["trans_num"]).strip()
+
+    if not trans_num:
+        raise ValueError("Transaction ID cannot be empty.")
+
     connection = get_connection()
 
     try:
         connection.execute(
             """
-            INSERT INTO transactions (cc_num, datetime, amt)
-            VALUES (?, ?, ?)
+            INSERT INTO transactions (trans_num,  cc_num, datetime, amt)
+            VALUES (?, ?, ?, ?)
             """,
             (
+                trans_num,
                 str(transaction["cc_num"]),
                 pd.to_datetime(transaction["trans_date_trans_time"],errors="raise",).strftime("%Y-%m-%d %H:%M:%S"),
                 float(transaction["amt"]),
@@ -78,9 +105,33 @@ def save_transaction(transaction):
 
         connection.commit()
 
+    except sqlite3.IntegrityError as error:
+        raise ValueError(
+            f"Duplicate transaction ID: {trans_num}"
+        ) from error
+
     finally:
         connection.close()
 
+
+def transaction_exists(trans_num):
+    connection = get_connection()
+
+    try:
+        result = connection.execute(
+            """
+            SELECT 1
+            FROM transactions
+            WHERE trans_num = ?
+            LIMIT 1
+            """,
+            (str(trans_num).strip(),),
+        ).fetchone()
+
+        return result is not None
+
+    finally:
+        connection.close()
 
 def get_transaction_history(cc_num, current_time, hours=24):
     if hours <= 0:
