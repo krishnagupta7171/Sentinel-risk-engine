@@ -1,0 +1,22 @@
+services:
+  sentinel-api:
+    build: .
+    image: sentinel-risk-engine:v1
+    container_name: sentinel-container
+
+    ports:
+      - "${API_PORT:-8000}:8000"
+
+    env_file:
+      - path: ${ENV_FILE:-.env}
+        required: true
+
+    volumes:
+      - sentinel-db:/app/data/database
+
+    restart: unless-stopped
+
+volumes:
+  sentinel-db:
+    external: true
+    name: sentinel-db

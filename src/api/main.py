@@ -2,7 +2,7 @@ from fastapi import HTTPException, FastAPI
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 from src.models.realtime_predict import predict_single_transaction
-
+from src.common.config import DEBUG 
 from src.storage.database import (initialize_database,get_transaction_history,save_transaction,transaction_exists,)
 
 @asynccontextmanager
@@ -11,7 +11,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Sentinel Risk Engine",description="Machine Learning Based Fraud Detection API",version="1.0.0",lifespan=lifespan,)
+app = FastAPI(title="Sentinel Risk Engine",description="Machine Learning Based Fraud Detection API",version="1.0.0",debug=DEBUG,lifespan=lifespan,)
 
 class TransactionRequest(BaseModel):
     trans_num: str 

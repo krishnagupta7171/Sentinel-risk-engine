@@ -1,0 +1,38 @@
+
+# Python virtual environments
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Git files
+.git/
+.gitignore
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+notebooks/
+
+# Testing and cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local datasets
+data/raw/
+data/processed/
+
+# Local SQLite database
+data/database/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# IDE files
+.vscode/
+.idea/
