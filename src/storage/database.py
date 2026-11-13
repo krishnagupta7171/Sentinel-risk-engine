@@ -166,3 +166,46 @@ def get_transaction_history(cc_num, current_time, hours=24):
 
     finally:
         connection.close()
+
+
+
+def get_all_transactions(limit=100, offset=0):
+    connection = get_connection()
+
+    try:
+        transactions = connection.execute(
+            """
+            SELECT id, trans_num, cc_num, datetime, amt
+            FROM transactions
+            ORDER BY id DESC
+            LIMIT ? OFFSET ?
+            """,
+            (limit, offset),
+        ).fetchall()
+
+        return [dict(row) for row in transactions]
+
+    finally:
+        connection.close()
+
+
+
+def get_transaction_stats():
+    connection = get_connection()
+
+    try:
+        stats = connection.execute(
+            """
+            SELECT
+                COUNT(*) AS total_transactions,
+                COALESCE(SUM(amt), 0) AS total_amount,
+                COALESCE(AVG(amt), 0) AS average_amount
+            FROM transactions
+            """
+        ).fetchone()
+
+        return dict(stats)
+
+    finally:
+        connection.close()
+
