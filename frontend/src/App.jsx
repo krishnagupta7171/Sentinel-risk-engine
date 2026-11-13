@@ -10,6 +10,7 @@ import {
 import FraudPrediction from "./components/FraudPrediction";
 import Transactions from "./components/Transactions";
 import ModelPerformance from "./components/ModelPerformance";
+import APIMonitoring from "./components/APIMonitoring";
 
 import {
   LayoutDashboard,
@@ -178,8 +179,8 @@ function App() {
               key={item.name}
               onClick={() => setActivePage(item.name)}
               className={`w-full flex items-center gap-3 rounded-lg px-4 py-3 text-sm transition ${activePage === item.name
-                  ? "bg-blue-600 text-white"
-                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                ? "bg-blue-600 text-white"
+                : "text-slate-400 hover:bg-slate-800 hover:text-white"
                 }`}
             >
               <item.icon size={19} />
@@ -248,6 +249,9 @@ function App() {
 
           ) : activePage === "Model Performance" ? (
             <ModelPerformance />
+
+          ) : activePage === "API Monitoring" ? (
+            <APIMonitoring />
 
           ) : activePage === "Overview" ? (
             <>

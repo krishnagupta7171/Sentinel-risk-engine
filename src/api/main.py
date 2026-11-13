@@ -3,6 +3,8 @@ import json
 import urllib.parse
 import urllib.request
 import urllib.error
+import time
+from collections import defaultdict
 from dotenv import load_dotenv
 from functools import lru_cache
 from fastapi import HTTPException, FastAPI, Query
@@ -33,6 +35,61 @@ app.add_middleware(CORSMiddleware,allow_origins=["http://localhost:5173"],
     allow_credentials=False,allow_methods=["GET", "POST"],allow_headers=["Content-Type"])
 
 
+API_START_TIME = time.monotonic()
+
+api_metrics = {
+    "total_requests": 0,
+    "successful_requests": 0,
+    "failed_requests": 0,
+    "prediction_requests": 0,
+    "total_response_time_ms": 0.0,
+    "endpoints": defaultdict(
+        lambda: {
+            "requests": 0,
+            "errors": 0,
+            "total_response_time_ms": 0.0,
+        }
+    ),
+}
+
+
+@app.middleware("http")
+async def monitor_api_requests(request, call_next):
+
+    start_time = time.perf_counter()
+
+    method = request.method
+    path = request.url.path
+
+    status_code = 500
+
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        return response
+
+    finally:
+        response_time = (time.perf_counter() - start_time) * 1000
+
+        api_metrics["total_requests"] += 1
+        api_metrics["total_response_time_ms"] += response_time
+
+        if status_code < 400:
+            api_metrics["successful_requests"] += 1
+        else:
+            api_metrics["failed_requests"] += 1
+
+        if method == "POST" and path == "/predict":
+            api_metrics["prediction_requests"] += 1
+
+        
+        endpoint = api_metrics["endpoints"][f"{method} {path}"]
+
+        endpoint["requests"] += 1
+        endpoint["total_response_time_ms"] += response_time
+
+        if status_code >= 400:
+            endpoint["errors"] += 1
 
 
 def geonames_request(endpoint: str, params: dict):
@@ -293,3 +350,45 @@ def get_fraud_analytics_endpoint():
             status_code=500,
             detail="Unable to retrieve fraud analytics.",
         ) from error
+
+
+
+@app.get("/monitoring/metrics")
+def get_monitoring_metrics():
+
+    total_requests = api_metrics["total_requests"]
+
+    average_response_time = (
+        api_metrics["total_response_time_ms"] / total_requests
+        if total_requests > 0
+        else 0
+    )
+
+    endpoint_metrics = {}
+
+    for endpoint_name, metrics in api_metrics["endpoints"].items():
+
+        requests = metrics["requests"]
+
+        endpoint_metrics[endpoint_name] = {
+            "requests": requests,
+            "errors": metrics["errors"],
+            "average_response_time_ms": round(
+                metrics["total_response_time_ms"] / requests,
+                2,
+            ) if requests > 0 else 0,
+        }
+
+    return {
+        "uptime_seconds": round(
+            time.monotonic() - API_START_TIME, 2
+        ),
+        "total_requests": total_requests,
+        "successful_requests": api_metrics["successful_requests"],
+        "failed_requests": api_metrics["failed_requests"],
+        "prediction_requests": api_metrics["prediction_requests"],
+        "average_response_time_ms": round(
+            average_response_time, 2
+        ),
+        "endpoints": endpoint_metrics,
+    }

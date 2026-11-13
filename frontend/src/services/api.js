@@ -82,3 +82,21 @@ export async function getFraudAnalytics() {
 
     return data;
 }
+
+
+
+export async function getMonitoringMetrics() {
+    const response = await fetch(`${API_BASE_URL}/monitoring/metrics`);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(
+            data.detail || "Unable to retrieve API monitoring metrics"
+        );
+    }
+
+    return data;
+}
+
+
