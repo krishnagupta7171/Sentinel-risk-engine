@@ -46,6 +46,24 @@ def initialize_database():
                 ADD COLUMN trans_num TEXT
             """)
 
+        columns = [
+            row["name"]
+            for row in connection.execute(
+                "PRAGMA table_info(transactions)"
+            ).fetchall()
+        ]
+
+        prediction_columns = {
+            "fraud_probability": "REAL",
+            "is_fraud_prediction": "INTEGER",
+            "risk_label": "TEXT",
+        }
+
+        for column_name, column_type in prediction_columns.items():
+            if column_name not in columns:
+                connection.execute(
+                    f"ALTER TABLE transactions ADD COLUMN {column_name} {column_type}"
+                )
 
         connection.execute("""
             CREATE INDEX IF NOT EXISTS idx_card_datetime
@@ -66,7 +84,7 @@ def initialize_database():
     print("Database initialized successfully.")
 
 
-def save_transaction(transaction):
+def save_transaction(transaction, prediction=None):
     required_fields = [
         "trans_num",
         "cc_num",
@@ -87,19 +105,41 @@ def save_transaction(transaction):
     if not trans_num:
         raise ValueError("Transaction ID cannot be empty.")
 
+    if prediction is not None:
+        prediction_fields = [
+            "fraud_probability",
+            "is_fraud_prediction",
+            "risk_label",
+        ]
+
+
+        missing_prediction_fields = [
+            field for field in prediction_fields
+            if field not in prediction
+        ]
+
+        if missing_prediction_fields:
+            raise ValueError(
+                f"Missing prediction fields: {missing_prediction_fields}"
+            )
+
+
     connection = get_connection()
 
     try:
         connection.execute(
             """
-            INSERT INTO transactions (trans_num,  cc_num, datetime, amt)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO transactions (trans_num,  cc_num, datetime, amt, fraud_probability, is_fraud_prediction, risk_label)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 trans_num,
                 str(transaction["cc_num"]),
                 pd.to_datetime(transaction["trans_date_trans_time"],errors="raise",).strftime("%Y-%m-%d %H:%M:%S"),
                 float(transaction["amt"]),
+                float(prediction["fraud_probability"]) if prediction is not None else None,
+                int(prediction["is_fraud_prediction"]) if prediction is not None else None,
+                str(prediction["risk_label"]) if prediction is not None else None,
             ),
         )
 
@@ -175,7 +215,7 @@ def get_all_transactions(limit=100, offset=0):
     try:
         transactions = connection.execute(
             """
-            SELECT id, trans_num, cc_num, datetime, amt
+            SELECT id, trans_num, cc_num, datetime, amt, fraud_probability, is_fraud_prediction, risk_label
             FROM transactions
             ORDER BY id DESC
             LIMIT ? OFFSET ?
@@ -209,3 +249,65 @@ def get_transaction_stats():
     finally:
         connection.close()
 
+
+def get_fraud_analytics():
+    connection = get_connection()
+
+    try:
+        analytics = connection.execute(
+            """
+            SELECT
+                COUNT(*) AS total_predictions,
+
+                SUM(
+                    CASE
+                        WHEN is_fraud_prediction = 1 THEN 1
+                        ELSE 0
+                    END
+                ) AS fraud_transactions,
+
+                SUM(
+                    CASE
+                        WHEN is_fraud_prediction = 0 THEN 1
+                        ELSE 0
+                    END
+                ) AS legitimate_transactions,
+
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN is_fraud_prediction = 1 THEN amt
+                            ELSE 0
+                        END
+                    ),
+                    0
+                ) AS fraud_amount,
+
+                COALESCE(
+                    AVG(fraud_probability),
+                    0
+                ) AS average_fraud_probability
+
+            FROM transactions
+            WHERE is_fraud_prediction IS NOT NULL
+            """
+        ).fetchone()
+
+        result = dict(analytics)
+
+        total = result["total_predictions"]
+
+        result["fraud_rate"] = (
+            round(result["fraud_transactions"] / total * 100, 2)
+            if total > 0 else 0
+        )
+
+        result["legitimate_rate"] = (
+            round(result["legitimate_transactions"] / total * 100, 2)
+            if total > 0 else 0
+        )
+
+        return result
+
+    finally:
+        connection.close()

@@ -65,3 +65,20 @@ export async function getOverviewAnalytics() {
     return data;
 }
 
+
+
+export async function getFraudAnalytics() {
+    const response = await fetch(
+        `${API_BASE_URL}/analytics/fraud`
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(
+            data.detail || "Unable to retrieve fraud analytics"
+        );
+    }
+
+    return data;
+}

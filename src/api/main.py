@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from contextlib import asynccontextmanager
 from src.models.realtime_predict import predict_single_transaction
 from src.common.config import DEBUG 
-from src.storage.database import (initialize_database,get_transaction_history,save_transaction,transaction_exists,get_all_transactions,get_transaction_stats,)
+from src.storage.database import (initialize_database,get_transaction_history,save_transaction,transaction_exists,get_all_transactions,get_transaction_stats,get_fraud_analytics,)
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -224,7 +224,7 @@ def predict_transaction(request: TransactionRequest):
 
         result = predict_single_transaction(transaction,history=history,)
 
-        save_transaction(transaction)
+        save_transaction(transaction, prediction = result)
 
         return {
             "fraud_probability": result["fraud_probability"],
@@ -279,4 +279,17 @@ def get_overview_analytics():
         raise HTTPException(
             status_code=500,
             detail="Unable to retrieve dashboard analytics.",
+        ) from error
+
+
+
+@app.get("/analytics/fraud")
+def get_fraud_analytics_endpoint():
+    try:
+        return get_fraud_analytics()
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to retrieve fraud analytics.",
         ) from error

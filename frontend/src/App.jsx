@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import {
   checkApiHealth,
   getOverviewAnalytics,
+  getFraudAnalytics,
 } from "./services/api.js";
 
 import FraudPrediction from "./components/FraudPrediction";
 import Transactions from "./components/Transactions";
+import ModelPerformance from "./components/ModelPerformance";
 
 import {
   LayoutDashboard,
@@ -19,10 +21,10 @@ import {
   Bell,
   Search,
   ShieldCheck,
-  TrendingUp,
   Menu,
   IndianRupee,
   Calculator,
+  TrendingUp,
 } from "lucide-react";
 
 const navigation = [
@@ -45,9 +47,23 @@ function App() {
     average_amount: 0,
   });
 
+  const [fraudAnalytics, setFraudAnalytics] = useState({
+    total_predictions: 0,
+    fraud_transactions: 0,
+    legitimate_transactions: 0,
+    fraud_amount: 0,
+    average_fraud_probability: 0,
+    fraud_rate: 0,
+    legitimate_rate: 0,
+  });
+
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState("");
 
+  const [fraudLoading, setFraudLoading] = useState(true);
+  const [fraudError, setFraudError] = useState("");
+
+  // Check API health
   useEffect(() => {
     const fetchHealth = async () => {
       try {
@@ -67,6 +83,7 @@ function App() {
     fetchHealth();
   }, []);
 
+  // Fetch transaction analytics
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
@@ -74,11 +91,10 @@ function App() {
         setAnalyticsError("");
 
         const data = await getOverviewAnalytics();
-
         setAnalytics(data);
       } catch (error) {
         setAnalyticsError(
-          error.message || "Unable to load analytics."
+          error.message || "Unable to load transaction analytics."
         );
       } finally {
         setAnalyticsLoading(false);
@@ -88,6 +104,27 @@ function App() {
     fetchAnalytics();
   }, []);
 
+  // Fetch fraud analytics
+  useEffect(() => {
+    const fetchFraudAnalytics = async () => {
+      try {
+        setFraudLoading(true);
+        setFraudError("");
+
+        const data = await getFraudAnalytics();
+        setFraudAnalytics(data);
+      } catch (error) {
+        setFraudError(
+          error.message || "Unable to load fraud analytics."
+        );
+      } finally {
+        setFraudLoading(false);
+      }
+    };
+
+    fetchFraudAnalytics();
+  }, []);
+
   const formatCurrency = (amount) =>
     new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -95,9 +132,27 @@ function App() {
       maximumFractionDigits: 2,
     }).format(amount || 0);
 
+  const formatPercentage = (value) =>
+    `${Number(value || 0).toFixed(2)}%`;
+
+  const fraudShare =
+    fraudAnalytics.total_predictions > 0
+      ? (fraudAnalytics.fraud_transactions /
+        fraudAnalytics.total_predictions) *
+      100
+      : 0;
+
+  const legitimateShare =
+    fraudAnalytics.total_predictions > 0
+      ? (fraudAnalytics.legitimate_transactions /
+        fraudAnalytics.total_predictions) *
+      100
+      : 0;
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex">
 
+      {/* Sidebar */}
       <aside className="hidden md:flex w-64 flex-col border-r border-slate-800 bg-slate-900/70 p-5">
 
         <div className="flex items-center gap-3 mb-10">
@@ -145,8 +200,10 @@ function App() {
         </div>
       </aside>
 
+      {/* Main Content */}
       <main className="flex-1 min-w-0">
 
+        {/* Header */}
         <header className="h-16 border-b border-slate-800 flex items-center justify-between px-5 md:px-8">
 
           <div className="flex items-center gap-3">
@@ -180,6 +237,7 @@ function App() {
           </div>
         </header>
 
+        {/* Page Rendering */}
         <section className="p-5 md:p-8">
 
           {activePage === "Fraud Prediction" ? (
@@ -188,8 +246,13 @@ function App() {
           ) : activePage === "Transactions" ? (
             <Transactions />
 
+          ) : activePage === "Model Performance" ? (
+            <ModelPerformance />
+
           ) : activePage === "Overview" ? (
             <>
+
+              {/* Welcome */}
               <div className="mb-8">
                 <h2 className="text-2xl font-bold">
                   Welcome to Sentinel
@@ -201,6 +264,7 @@ function App() {
                 </p>
               </div>
 
+              {/* Transaction Overview Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
 
                 <MetricCard
@@ -208,7 +272,7 @@ function App() {
                   value={
                     analyticsLoading
                       ? "..."
-                      : analytics.total_transactions.toLocaleString("en-IN")
+                      : Number(analytics.total_transactions || 0).toLocaleString("en-IN")
                   }
                   subtitle="Records stored in SQLite"
                   icon={History}
@@ -256,11 +320,78 @@ function App() {
               </div>
 
               {analyticsError && (
-                <div className="mt-5 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
-                  Analytics error: {analyticsError}
-                </div>
+                <ErrorMessage message={analyticsError} />
               )}
 
+              {/* Fraud Analytics Heading */}
+              <div className="mt-10 mb-5">
+                <h3 className="text-xl font-bold">
+                  Fraud Detection Overview
+                </h3>
+
+                <p className="text-sm text-slate-400 mt-1">
+                  Analytics based on stored model predictions
+                </p>
+              </div>
+
+              {fraudError && (
+                <ErrorMessage message={fraudError} />
+              )}
+
+              {/* Fraud Analytics KPI Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+
+                <MetricCard
+                  title="Total Predictions"
+                  value={
+                    fraudLoading
+                      ? "..."
+                      : Number(fraudAnalytics.total_predictions || 0).toLocaleString("en-IN")
+                  }
+                  subtitle="Transactions with saved predictions"
+                  icon={TrendingUp}
+                  color="blue"
+                />
+
+                <MetricCard
+                  title="Fraud Transactions"
+                  value={
+                    fraudLoading
+                      ? "..."
+                      : Number(fraudAnalytics.fraud_transactions || 0).toLocaleString("en-IN")
+                  }
+                  subtitle="Classified as fraudulent"
+                  icon={ShieldAlert}
+                  color="red"
+                />
+
+                <MetricCard
+                  title="Legitimate Transactions"
+                  value={
+                    fraudLoading
+                      ? "..."
+                      : Number(fraudAnalytics.legitimate_transactions || 0).toLocaleString("en-IN")
+                  }
+                  subtitle="Classified as legitimate"
+                  icon={ShieldCheck}
+                  color="green"
+                />
+
+                <MetricCard
+                  title="Fraud Detection Rate"
+                  value={
+                    fraudLoading
+                      ? "..."
+                      : formatPercentage(fraudAnalytics.fraud_rate)
+                  }
+                  subtitle="Share classified as fraud"
+                  icon={Activity}
+                  color="purple"
+                />
+
+              </div>
+
+              {/* Fraud Analytics Chart and Model Information */}
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mt-8">
 
                 <div className="xl:col-span-2 rounded-xl border border-slate-800 bg-slate-900 p-6">
@@ -270,19 +401,152 @@ function App() {
                   </h3>
 
                   <p className="text-sm text-slate-400 mt-1">
-                    Transaction analytics will appear here once
-                    prediction results are stored in the database.
+                    Fraud and legitimate prediction distribution
                   </p>
 
-                  <div className="h-64 flex flex-col items-center justify-center text-slate-500">
-                    <Activity size={38} className="mb-3" />
+                  {fraudLoading ? (
+                    <div className="h-64 flex items-center justify-center text-slate-400">
+                      Loading fraud analytics...
+                    </div>
+                  ) : fraudError ? (
+                    <div className="h-64 flex items-center justify-center text-sm text-red-400">
+                      Unable to load fraud analytics
+                    </div>
+                  ) : fraudAnalytics.total_predictions === 0 ? (
+                    <div className="h-64 flex flex-col items-center justify-center text-slate-500">
+                      <Activity size={38} className="mb-3" />
+                      <p className="text-sm">
+                        No prediction data available yet
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 items-center py-8">
 
-                    <p className="text-sm">
-                      Fraud analytics not yet available
-                    </p>
+                      {/* Donut Chart */}
+                      <div className="flex justify-center">
+                        <div
+                          className="relative h-48 w-48 rounded-full flex items-center justify-center"
+                          style={{
+                            background: `conic-gradient(
+                              #ef4444 0% ${fraudShare}%,
+                              #22c55e ${fraudShare}% 100%
+                            )`,
+                          }}
+                        >
+                          <div className="h-32 w-32 rounded-full bg-slate-900 flex flex-col items-center justify-center">
+                            <span className="text-3xl font-bold">
+                              {formatPercentage(fraudShare)}
+                            </span>
+
+                            <span className="text-xs text-slate-400">
+                              Fraud rate
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Fraud and Legitimate Distribution */}
+                      <div className="space-y-6">
+
+                        <div>
+                          <div className="flex justify-between items-center mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="h-3 w-3 rounded-full bg-red-500" />
+                              <span className="text-sm text-slate-300">
+                                Fraud
+                              </span>
+                            </div>
+
+                            <span className="font-semibold">
+                              {fraudAnalytics.fraud_transactions}
+                            </span>
+                          </div>
+
+                          <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+                            <div
+                              className="h-full bg-red-500 rounded-full"
+                              style={{ width: `${fraudShare}%` }}
+                            />
+                          </div>
+
+                          <p className="text-xs text-slate-500 mt-1">
+                            {formatPercentage(fraudShare)}
+                          </p>
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between items-center mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="h-3 w-3 rounded-full bg-green-500" />
+                              <span className="text-sm text-slate-300">
+                                Legitimate
+                              </span>
+                            </div>
+
+                            <span className="font-semibold">
+                              {fraudAnalytics.legitimate_transactions}
+                            </span>
+                          </div>
+
+                          <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+                            <div
+                              className="h-full bg-green-500 rounded-full"
+                              style={{ width: `${legitimateShare}%` }}
+                            />
+                          </div>
+
+                          <p className="text-xs text-slate-500 mt-1">
+                            {formatPercentage(legitimateShare)}
+                          </p>
+                        </div>
+
+                        <div className="border-t border-slate-800 pt-4">
+                          <p className="text-xs text-slate-500">
+                            Total predictions analyzed
+                          </p>
+
+                          <p className="text-xl font-bold mt-1">
+                            {fraudAnalytics.total_predictions}
+                          </p>
+                        </div>
+
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fraud Analytics Summary */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-800 pt-5">
+
+                    <div>
+                      <p className="text-xs text-slate-500">
+                        Fraud Transaction Amount
+                      </p>
+
+                      <p className="text-lg font-semibold text-red-400 mt-1">
+                        {fraudLoading
+                          ? "..."
+                          : formatCurrency(fraudAnalytics.fraud_amount)}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-slate-500">
+                        Average Fraud Probability
+                      </p>
+
+                      <p className="text-lg font-semibold text-blue-400 mt-1">
+                        {fraudLoading
+                          ? "..."
+                          : `${(
+                            Number(fraudAnalytics.average_fraud_probability || 0) * 100
+                          ).toFixed(2)}%`}
+                      </p>
+                    </div>
+
                   </div>
                 </div>
 
+                {/* Model Information */}
                 <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
 
                   <h3 className="font-semibold text-lg">
@@ -311,6 +575,7 @@ function App() {
                 </div>
 
               </div>
+
             </>
 
           ) : (
@@ -333,6 +598,7 @@ function App() {
   );
 }
 
+// Reusable Metric Card
 function MetricCard({
   title,
   value,
@@ -360,7 +626,7 @@ function MetricCard({
         </div>
       </div>
 
-      <h3 className="text-2xl font-bold mt-5">
+      <h3 className="text-2xl font-bold mt-5 break-words">
         {value}
       </h3>
 
@@ -372,11 +638,21 @@ function MetricCard({
   );
 }
 
+// Reusable Information Row
 function InfoRow({ label, value }) {
   return (
     <div className="flex justify-between gap-3 text-sm">
       <span className="text-slate-400">{label}</span>
       <span className="font-medium text-slate-200">{value}</span>
+    </div>
+  );
+}
+
+// Reusable Error Message
+function ErrorMessage({ message }) {
+  return (
+    <div className="mt-5 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
+      {message}
     </div>
   );
 }
