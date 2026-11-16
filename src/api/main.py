@@ -14,7 +14,8 @@ from src.models.realtime_predict import predict_single_transaction
 from src.common.config import DEBUG 
 from src.storage.database import (initialize_database,get_transaction_history,save_transaction,transaction_exists,get_all_transactions,get_transaction_stats,get_fraud_analytics,)
 from fastapi.middleware.cors import CORSMiddleware
-
+from prometheus_client import ( Counter,Histogram,Gauge,generate_latest,CONTENT_TYPE_LATEST,)
+from starlette.responses import Response
 
 load_dotenv()
 
@@ -31,7 +32,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Sentinel Risk Engine",description="Machine Learning Based Fraud Detection API",version="1.0.0",debug=DEBUG,lifespan=lifespan,)
 
-app.add_middleware(CORSMiddleware,allow_origins=["http://localhost:5173"],
+app.add_middleware(CORSMiddleware,allow_origins=["http://localhost:5173","http://3.94.165.64:30090",],
     allow_credentials=False,allow_methods=["GET", "POST"],allow_headers=["Content-Type"])
 
 
@@ -53,6 +54,21 @@ api_metrics = {
 }
 
 
+# Prometheus metrics
+
+REQUEST_COUNT = Counter("sentinel_api_requests_total","Total number of API requests",
+    ["method", "endpoint", "status_code"],)
+
+REQUEST_LATENCY = Histogram("sentinel_api_request_duration_seconds","API request processing time in seconds",
+    ["method", "endpoint"],)
+
+PREDICTION_COUNT = Counter("sentinel_prediction_requests_total",
+    "Total number of fraud prediction requests",)
+
+ACTIVE_REQUESTS = Gauge("sentinel_api_active_requests",
+    "Number of currently active API requests",)
+
+
 @app.middleware("http")
 async def monitor_api_requests(request, call_next):
 
@@ -62,6 +78,8 @@ async def monitor_api_requests(request, call_next):
     path = request.url.path
 
     status_code = 500
+
+    ACTIVE_REQUESTS.inc()
 
     try:
         response = await call_next(request)
@@ -91,6 +109,14 @@ async def monitor_api_requests(request, call_next):
         if status_code >= 400:
             endpoint["errors"] += 1
 
+        REQUEST_COUNT.labels(method=method,endpoint=path,status_code=str(status_code),).inc()
+
+        REQUEST_LATENCY.labels(method=method,endpoint=path,).observe(response_time)
+
+        if method == "POST" and path == "/predict":
+            PREDICTION_COUNT.inc()
+
+        ACTIVE_REQUESTS.dec()
 
 def geonames_request(endpoint: str, params: dict):
 
@@ -392,3 +418,9 @@ def get_monitoring_metrics():
         ),
         "endpoints": endpoint_metrics,
     }
+
+
+@app.get("/metrics", include_in_schema=False)
+def prometheus_metrics():
+    return Response(content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST,)

@@ -1,5 +1,5 @@
 
-const API_BASE_URL = "http://127.0.0.1:8000";
+const API_BASE_URL = "http://3.94.165.64:30080";
 
 export async function checkApiHealth() {
     const response = await fetch(`${API_BASE_URL}/health`);
@@ -11,23 +11,36 @@ export async function checkApiHealth() {
     return response.json();
 }
 
+
 export async function predictTransaction(transaction) {
+    const payload = {
+        ...transaction,
+        cc_num: Number(
+            String(transaction.cc_num).replace(/\s+/g, "")
+        ),
+    };
+
     const response = await fetch(`${API_BASE_URL}/predict`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
         },
-        body: JSON.stringify(transaction),
+        body: JSON.stringify(payload),
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-        throw new Error(data.detail || "Prediction failed");
+        const errorMessage = Array.isArray(data.detail)
+            ? data.detail.map(err => `${err.loc?.join(".")}: ${err.msg}`).join(", ")
+            : data.detail || "Prediction failed";
+
+        throw new Error(errorMessage);
     }
 
     return data;
 }
+
 
 
 

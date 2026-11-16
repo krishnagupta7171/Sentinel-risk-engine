@@ -74,7 +74,7 @@ function FraudPrediction() {
                 });
 
                 const response = await fetch(
-                    `http://127.0.0.1:8000/location/population?${params}`,
+                    `http://3.94.165.64:30080/location/population?${params}`,
                     {
                         signal: controller.signal,
                     }
@@ -680,8 +680,8 @@ function FraudPrediction() {
 
                             <p
                                 className={`mt-2 text-2xl font-bold ${isFraud
-                                        ? "text-red-400"
-                                        : "text-emerald-400"
+                                    ? "text-red-400"
+                                    : "text-emerald-400"
                                     }`}
                             >
                                 {prediction.risk_label || "N/A"}
@@ -696,8 +696,8 @@ function FraudPrediction() {
 
                             <p
                                 className={`mt-2 text-2xl font-bold ${isFraud
-                                        ? "text-red-400"
-                                        : "text-emerald-400"
+                                    ? "text-red-400"
+                                    : "text-emerald-400"
                                     }`}
                             >
                                 {isFraud ? "Fraud Detected" : "Legitimate"}

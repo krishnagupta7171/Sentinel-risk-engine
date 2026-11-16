@@ -11,3 +11,7 @@ dvc
 xgboost
 catboost
 pytest
+fastapi
+uvicorn
+python-multipart
+prometheus-client==0.26.0
