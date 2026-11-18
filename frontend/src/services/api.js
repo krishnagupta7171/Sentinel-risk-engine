@@ -1,5 +1,5 @@
 
-const API_BASE_URL = "http://3.94.165.64:30080";
+const API_BASE_URL = "http://54.159.70.212:30080";
 
 export async function checkApiHealth() {
     const response = await fetch(`${API_BASE_URL}/health`);

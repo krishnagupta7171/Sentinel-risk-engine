@@ -74,7 +74,7 @@ function FraudPrediction() {
                 });
 
                 const response = await fetch(
-                    `http://3.94.165.64:30080/location/population?${params}`,
+                    `http://54.159.70.212:30080/location/population?${params}`,
                     {
                         signal: controller.signal,
                     }

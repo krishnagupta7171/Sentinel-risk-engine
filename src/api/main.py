@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Sentinel Risk Engine",description="Machine Learning Based Fraud Detection API",version="1.0.0",debug=DEBUG,lifespan=lifespan,)
 
-app.add_middleware(CORSMiddleware,allow_origins=["http://localhost:5173","http://3.94.165.64:30090",],
+app.add_middleware(CORSMiddleware,allow_origins=["http://localhost:5173","http://54.159.70.212:30090",],
     allow_credentials=False,allow_methods=["GET", "POST"],allow_headers=["Content-Type"])
 
 
